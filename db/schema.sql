@@ -25,7 +25,8 @@ CREATE TABLE events (
   starts_at    TIMESTAMPTZ NOT NULL,
   ends_at      TIMESTAMPTZ NOT NULL,
   organiser_id INT NOT NULL REFERENCES users(id),
-  venue_id     INT NOT NULL REFERENCES venues(id)
+  venue_id     INT NOT NULL REFERENCES venues(id),
+  created_at   TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE TABLE rsvps (

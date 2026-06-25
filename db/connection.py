@@ -1,6 +1,5 @@
 import psycopg2
-from credentials import DB_NAME
-
+from db.credentials import DB_NAME
 
 def get_connection():
     conn = psycopg2.connect(dbname=DB_NAME)
