@@ -99,3 +99,69 @@ def test_login_returns_400_when_password_is_missing():
     )
 
     assert response.status_code == 400
+
+def test_register_returns_201_and_user():
+    response = client.post(
+        "/api/auth/register",
+        json={
+            "name": "New User",
+            "email": "newuser@example.com",
+            "password": "password123",
+        },
+    )
+
+    assert response.status_code == 201
+
+    body = response.json()
+
+    assert "user" in body
+    assert body["user"]["name"] == "New User"
+    assert body["user"]["email"] == "newuser@example.com"
+    assert "password" not in body["user"]
+
+def test_register_returns_409_when_email_already_exists():
+    response = client.post(
+        "/api/auth/register",
+        json={
+            "name": "Another Alice",
+            "email": "alice@example.com",
+            "password": "password123",
+        },
+    )
+
+    assert response.status_code == 409
+
+def test_register_returns_400_when_name_is_missing():
+    response = client.post(
+        "/api/auth/register",
+        json={
+            "email": "missingname@example.com",
+            "password": "password123",
+        },
+    )
+
+    assert response.status_code == 400
+
+
+def test_register_returns_400_when_email_is_missing():
+    response = client.post(
+        "/api/auth/register",
+        json={
+            "name": "Missing Email",
+            "password": "password123",
+        },
+    )
+
+    assert response.status_code == 400
+
+
+def test_register_returns_400_when_password_is_missing():
+    response = client.post(
+        "/api/auth/register",
+        json={
+            "name": "Missing Password",
+            "email": "missingpassword@example.com",
+        },
+    )
+
+    assert response.status_code == 400

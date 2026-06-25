@@ -12,6 +12,17 @@ class CredentialsRequest(BaseModel):
     email: str | None = None
     password: str | None = None
 
+
+class RegisterRequest(BaseModel):
+    name: str | None = None
+    email: str | None = None
+    password: str | None = None
+
+
+def hash_password(plain: str) -> str:
+    return bcrypt.hashpw(plain.encode(), bcrypt.gensalt()).decode()
+
+
 def verify_password(plain: str, hashed: str) -> bool:
     return bcrypt.checkpw(plain.encode(), hashed.encode())
 
@@ -142,3 +153,53 @@ def login_user(payload: CredentialsRequest):
 
     token = create_access_token(row[0])
     return {"token": token}
+
+
+
+@app.post("/api/auth/register", status_code=201)
+def register_user(payload: RegisterRequest):
+    if payload.name is None or payload.email is None or payload.password is None:
+        raise HTTPException(status_code=400, detail="Name, email and password are required")
+
+    conn = get_connection()
+
+    with conn.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT id
+            FROM users
+            WHERE email = %s
+            """,
+            (payload.email,),
+        )
+
+        existing_user = cursor.fetchone()
+
+        if existing_user is not None:
+            conn.close()
+            raise HTTPException(status_code=409, detail="Email already registered")
+
+        hashed_password = hash_password(payload.password)
+
+        cursor.execute(
+            """
+            INSERT INTO users (name, email, password)
+            VALUES (%s, %s, %s)
+            RETURNING id, name, email, created_at
+            """,
+            (payload.name, payload.email, hashed_password),
+        )
+
+        row = cursor.fetchone()
+
+    conn.commit()
+    conn.close()
+
+    user = {
+        "id": row[0],
+        "name": row[1],
+        "email": row[2],
+        "created_at": row[3],
+    }
+
+    return {"user": user}    
