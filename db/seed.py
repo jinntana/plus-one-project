@@ -1,6 +1,12 @@
+import bcrypt
 import json
 from connection import get_connection
 
+def hash_password(plain_password):
+    return bcrypt.hashpw(
+        plain_password.encode(),
+        bcrypt.gensalt()
+    ).decode()
 
 def seed():
     conn = get_connection()
@@ -14,9 +20,6 @@ def seed():
     with open("db/data/users.json") as file:
         users = json.load(file)
 
-    with open("db/data/users.json") as file:
-        users = json.load(file)
-
     user_rows = []
 
     for user in users:
@@ -24,7 +27,7 @@ def seed():
             (
                 user["name"],
                 user["email"],
-                user["password"]
+                hash_password(user["password"])
             )
         )
 

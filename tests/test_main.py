@@ -39,3 +39,63 @@ def test_get_event_by_id_returns_400_when_id_is_not_a_number():
     response = client.get("/api/events/hello")
 
     assert response.status_code == 400    
+
+
+def test_login_returns_token():
+    response = client.post(
+        "/api/auth/login",
+        json={
+            "email": "alice@example.com",
+            "password": "password123",
+        },
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert "token" in data    
+
+def test_login_returns_401_for_wrong_password():
+    response = client.post(
+        "/api/auth/login",
+        json={
+            "email": "alice@example.com",
+            "password": "wrongpassword",
+        },
+    )
+
+    assert response.status_code == 401
+
+
+def test_login_returns_401_for_unknown_email():
+    response = client.post(
+        "/api/auth/login",
+        json={
+            "email": "notfound@example.com",
+            "password": "password123",
+        },
+    )
+
+    assert response.status_code == 401
+
+def test_login_returns_400_when_email_is_missing():
+    response = client.post(
+        "/api/auth/login",
+        json={
+            "password": "password123",
+        },
+    )
+
+    assert response.status_code == 400
+
+
+def test_login_returns_400_when_password_is_missing():
+    response = client.post(
+        "/api/auth/login",
+        json={
+            "email": "alice@example.com",
+        },
+    )
+
+    assert response.status_code == 400
