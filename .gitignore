@@ -3,3 +3,4 @@ nc-plus-one-seeding.md
 README.md
 __pycache__
 db/credentials.py
+.env

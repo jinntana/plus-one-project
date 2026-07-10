@@ -276,3 +276,7 @@ def create_rsvp(event_id: int, user_id: int = Depends(get_current_user_id)):
     }
 
     return {"rsvp": rsvp}
+
+@app.get("/api/health")
+def get_health():
+    return {"status": "ok"}

@@ -24,3 +24,23 @@ python db/seed.py
 
 
 I ordered the events by the latest events first so at ascending so the API returns them in chronological order, with the earliest event first. This is useful for an events list.
+
+Environment Variables
+
+This project uses environment variables to connect to the PostgreSQL database.
+
+You will need the following variables:
+
+PGHOST – the database host, such as localhost
+PGPORT – the database port, usually 5432
+PGDATABASE – the name of the database
+PGUSER – your PostgreSQL username
+PGPASSWORD – your PostgreSQL password
+
+For local development, create a .env file from the example file:
+
+cp .env.example .env
+
+Then update the values in .env with your own local database details.
+
+The .env file should not be committed to GitHub because it contains private information. When the application is deployed to AWS, the database details will be provided through environment variables instead.

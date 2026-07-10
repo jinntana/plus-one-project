@@ -1,6 +1,6 @@
 import bcrypt
 import json
-from connection import get_connection
+from db.connection import get_connection
 
 def hash_password(plain_password):
     return bcrypt.hashpw(
