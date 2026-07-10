@@ -67,3 +67,26 @@ terraform -chdir=terraform init
 ```
 
 Terraform should confirm that the S3 backend has been configured successfully.
+
+
+## EC2 Instance
+
+The API is hosted on an Ubuntu EC2 instance in the London region.
+
+It uses a `t2.micro` instance and the latest official Ubuntu image from Canonical. SSH access is limited to my current public IP address.
+
+After running:
+
+```bash
+terraform terraform apply
+```
+
+Terraform will display the instance’s public IP address.
+
+Use that IP to connect:
+
+```bash
+ssh -i ~/.ssh/plus-one-key.pem ubuntu@PUBLIC_IP
+```
+
+Replace `PUBLIC_IP` with the value shown by Terraform.
