@@ -1,8 +1,9 @@
 #!/bin/bash
 
+# Install and start the Plus One API
+
 apt update -y
 apt install -y python3 python3-pip python3-venv git
-
 git clone https://github.com/jinntana/plus-one-project.git /home/ubuntu/plus-one-project
 
 chown -R ubuntu:ubuntu /home/ubuntu/plus-one-project
