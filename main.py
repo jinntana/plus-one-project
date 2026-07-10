@@ -1,13 +1,19 @@
 import bcrypt
 import jwt
 from datetime import datetime, timedelta, timezone
-
+import os
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel
 from db.connection import get_connection
-from db.credentials import JWT_SECRET, JWT_ALGORITHM, JWT_EXPIRY_MINUTES
+from dotenv import load_dotenv
 
+
+load_dotenv()
+
+JWT_SECRET = os.getenv("JWT_SECRET")
+JWT_ALGORITHM = os.getenv("JWT_ALGORITHM")
+JWT_EXPIRY_MINUTES = int(os.getenv("JWT_EXPIRY_MINUTES"))
 
 class CredentialsRequest(BaseModel):
     email: str | None = None

@@ -16,6 +16,12 @@ source venv/bin/activate
 
 pip install -r requirements.txt
 
+export JWT_SECRET="e864240766c9fae306e0f553841309331d84747c0e9448e79e29a2c100d6719d"
+export JWT_ALGORITHM="HS256"
+export JWT_EXPIRY_MINUTES= "30"
+
+
+
 nohup uvicorn main:app \
   --host 0.0.0.0 \
   --port 8000 \
