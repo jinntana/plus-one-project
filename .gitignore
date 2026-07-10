@@ -4,3 +4,6 @@ README.md
 __pycache__
 db/credentials.py
 .env
+.terraform/
+*.tfstate
+*.tfstate.backup

@@ -44,3 +44,26 @@ cp .env.example .env
 Then update the values in .env with your own local database details.
 
 The .env file should not be committed to GitHub because it contains private information. When the application is deployed to AWS, the database details will be provided through environment variables instead.
+
+## Terraform Setup
+
+The AWS infrastructure is stored in the `terraform` folder.
+
+Terraform uses an S3 bucket to store its state remotely. Create the bucket before running `terraform init`:
+
+```bash
+aws s3api create-bucket \
+  --bucket serhan-plus-one-terraform-state-2026 \
+  --region eu-west-2 \
+  --create-bucket-configuration LocationConstraint=eu-west-2
+```
+
+Make sure the bucket name matches the one in `terraform/backend.tf`.
+
+Then initialise Terraform from the project root:
+
+```bash
+terraform -chdir=terraform init
+```
+
+Terraform should confirm that the S3 backend has been configured successfully.
