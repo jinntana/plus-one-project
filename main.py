@@ -2,7 +2,8 @@ import bcrypt
 import jwt
 from datetime import datetime, timedelta, timezone
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Depends, HTTPException
+from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel
 from db.connection import get_connection
 from db.credentials import JWT_SECRET, JWT_ALGORITHM, JWT_EXPIRY_MINUTES
@@ -32,6 +33,19 @@ def create_access_token(user_id: int) -> str:
     payload = {"sub": str(user_id), "exp": expire}
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+
+
+def get_current_user_id(token: str = Depends(oauth2_scheme)) -> int:
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        return int(payload["sub"])
+
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token has expired")
+
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Could not validate token")
 
 app = FastAPI()
 
@@ -203,3 +217,62 @@ def register_user(payload: RegisterRequest):
     }
 
     return {"user": user}    
+
+@app.post("/api/events/{event_id}/rsvp", status_code=201)
+def create_rsvp(event_id: int, user_id: int = Depends(get_current_user_id)):
+    conn = get_connection()
+
+    with conn.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT id
+            FROM events
+            WHERE id = %s
+            """,
+            (event_id,),
+        )
+
+        event = cursor.fetchone()
+
+        if event is None:
+            conn.close()
+            raise HTTPException(status_code=404, detail="Event not found")
+
+        cursor.execute(
+            """
+            SELECT id
+            FROM rsvps
+            WHERE attendee_id = %s
+            AND event_id = %s
+            """,
+            (user_id, event_id),
+        )
+
+        existing_rsvp = cursor.fetchone()
+
+        if existing_rsvp is not None:
+            conn.close()
+            raise HTTPException(status_code=409, detail="User has already RSVPed to this event")
+
+        cursor.execute(
+            """
+            INSERT INTO rsvps (attendee_id, event_id)
+            VALUES (%s, %s)
+            RETURNING id, attendee_id, event_id, created_at
+            """,
+            (user_id, event_id),
+        )
+
+        row = cursor.fetchone()
+
+    conn.commit()
+    conn.close()
+
+    rsvp = {
+        "id": row[0],
+        "attendee_id": row[1],
+        "event_id": row[2],
+        "created_at": row[3],
+    }
+
+    return {"rsvp": rsvp}
