@@ -2,7 +2,7 @@ import bcrypt
 import jwt
 from datetime import datetime, timedelta, timezone
 import os
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Response
 from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel
 from db.connection import get_connection
@@ -286,3 +286,38 @@ def create_rsvp(event_id: int, user_id: int = Depends(get_current_user_id)):
 @app.get("/api/health")
 def get_health():
     return {"status": "ok"}
+
+@app.delete("/api/events/{event_id}/rsvp/me", status_code=204)
+def delete_my_rsvp(event_id: int, user_id: int = Depends(get_current_user_id)):
+    conn = get_connection()
+
+    with conn.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT id
+            FROM rsvps
+            WHERE attendee_id = %s
+            AND event_id = %s
+            """,
+            (user_id, event_id),
+        )
+
+        rsvp = cursor.fetchone()
+
+        if rsvp is None:
+            conn.close()
+            raise HTTPException(status_code=404, detail="RSVP not found")
+
+        cursor.execute(
+            """
+            DELETE FROM rsvps
+            WHERE attendee_id = %s
+            AND event_id = %s
+            """,
+            (user_id, event_id),
+        )
+
+    conn.commit()
+    conn.close()
+
+    return Response(status_code=204)

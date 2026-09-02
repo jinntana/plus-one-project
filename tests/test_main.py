@@ -209,3 +209,29 @@ def test_create_rsvp_returns_401_when_token_is_invalid():
     )
 
     assert response.status_code == 401
+
+def test_delete_rsvp_returns_204_when_user_has_rsvped(auth_headers_user_2):
+    response = client.delete("/api/events/1/rsvp/me", headers=auth_headers_user_2)
+
+    assert response.status_code == 204
+    assert response.content == b""
+
+
+def test_delete_rsvp_returns_401_when_token_is_missing():
+    response = client.delete("/api/events/1/rsvp/me")
+
+    assert response.status_code == 401
+
+
+def test_delete_rsvp_returns_401_when_token_is_invalid():
+    response = client.delete(
+        "/api/events/1/rsvp/me",
+        headers={"Authorization": "Bearer not-a-real-token"},
+    )
+
+    assert response.status_code == 401
+
+def test_delete_rsvp_returns_404_when_rsvp_does_not_exist(auth_headers):
+    response = client.delete("/api/events/999/rsvp/me", headers=auth_headers)
+
+    assert response.status_code == 404    
