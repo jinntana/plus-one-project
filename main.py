@@ -523,6 +523,48 @@ def delete_my_rsvp(event_id: int, user_id: int = Depends(get_current_user_id)):
 
     return Response(status_code=204)
 
+@app.get("/api/user/me/events")
+def get_my_events(user_id: int = Depends(get_current_user_id)):
+    conn = get_connection()
+
+    with conn.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT
+                events.id,
+                events.title,
+                events.starts_at,
+                rsvps.created_at AS rsvp_date,
+                ROW_NUMBER() OVER (ORDER BY events.starts_at ASC) AS event_rank,
+                COUNT(*) OVER () AS total_rsvps
+            FROM rsvps
+            JOIN events
+            ON rsvps.event_id = events.id
+            WHERE rsvps.attendee_id = %s
+            ORDER BY events.starts_at ASC
+            """,
+            (user_id,),
+        )
+
+        rows = cursor.fetchall()
+
+    conn.close()
+
+    events = []
+
+    for row in rows:
+        events.append(
+            {
+                "id": row[0],
+                "title": row[1],
+                "starts_at": row[2],
+                "rsvp_date": row[3],
+                "event_rank": row[4],
+                "total_rsvps": row[5],
+            }
+        )
+
+    return {"events": events}
 
 @app.get("/api/health")
 def get_health():

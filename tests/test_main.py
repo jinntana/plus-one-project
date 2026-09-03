@@ -502,3 +502,52 @@ def test_get_event_attendees_returns_404_when_event_does_not_exist(auth_headers)
     response = client.get("/api/events/999/attendees", headers=auth_headers)
 
     assert response.status_code == 404
+
+def test_get_my_events_returns_200_and_events(auth_headers):
+    response = client.get("/api/user/me/events", headers=auth_headers)
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert "events" in data
+    assert len(data["events"]) > 0
+
+    first_event = data["events"][0]
+
+    assert "id" in first_event
+    assert "title" in first_event
+    assert "starts_at" in first_event
+    assert "rsvp_date" in first_event
+    assert "event_rank" in first_event
+    assert "total_rsvps" in first_event
+
+
+def test_get_my_events_returns_event_rank_and_total_rsvps(auth_headers):
+    response = client.get("/api/user/me/events", headers=auth_headers)
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    events = data["events"]
+
+    assert events[0]["event_rank"] == 1
+
+    for event in events:
+        assert event["total_rsvps"] == len(events)
+
+
+def test_get_my_events_returns_401_when_token_is_missing():
+    response = client.get("/api/user/me/events")
+
+    assert response.status_code == 401
+
+
+def test_get_my_events_returns_401_when_token_is_invalid():
+    response = client.get(
+        "/api/user/me/events",
+        headers={"Authorization": "Bearer not-a-real-token"},
+    )
+
+    assert response.status_code == 401
