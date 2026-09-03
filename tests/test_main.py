@@ -235,3 +235,110 @@ def test_delete_rsvp_returns_404_when_rsvp_does_not_exist(auth_headers):
     response = client.delete("/api/events/999/rsvp/me", headers=auth_headers)
 
     assert response.status_code == 404    
+
+def test_create_event_returns_201_and_event(auth_headers):
+    response = client.post(
+        "/api/events",
+        headers=auth_headers,
+        json={
+            "title": "Summer Rooftop Social",
+            "description": "An evening of networking and good vibes.",
+            "starts_at": "2026-08-15T18:00:00Z",
+            "ends_at": "2026-08-15T21:00:00Z",
+            "venue_id": 2,
+        },
+    )
+
+    assert response.status_code == 201
+
+    data = response.json()
+
+    assert "event" in data
+    assert data["event"]["title"] == "Summer Rooftop Social"
+    assert data["event"]["description"] == "An evening of networking and good vibes."
+    assert data["event"]["venue_id"] == 2
+    assert data["event"]["organiser_id"] == 1
+    assert "created_at" in data["event"]
+
+
+def test_create_event_uses_token_user_as_organiser(auth_headers):
+    response = client.post(
+        "/api/events",
+        headers=auth_headers,
+        json={
+            "title": "Organiser Check Event",
+            "description": "Checking organiser comes from token.",
+            "starts_at": "2026-09-15T18:00:00Z",
+            "ends_at": "2026-09-15T21:00:00Z",
+            "venue_id": 2,
+            "organiser_id": 999,
+        },
+    )
+
+    assert response.status_code == 201
+
+    data = response.json()
+
+    assert data["event"]["organiser_id"] == 1
+
+
+def test_create_event_returns_401_when_token_is_missing():
+    response = client.post(
+        "/api/events",
+        json={
+            "title": "No Token Event",
+            "description": "This should not be created.",
+            "starts_at": "2026-08-15T18:00:00Z",
+            "ends_at": "2026-08-15T21:00:00Z",
+            "venue_id": 2,
+        },
+    )
+
+    assert response.status_code == 401
+
+
+def test_create_event_returns_401_when_token_is_invalid():
+    response = client.post(
+        "/api/events",
+        headers={"Authorization": "Bearer not-a-real-token"},
+        json={
+            "title": "Invalid Token Event",
+            "description": "This should not be created.",
+            "starts_at": "2026-08-15T18:00:00Z",
+            "ends_at": "2026-08-15T21:00:00Z",
+            "venue_id": 2,
+        },
+    )
+
+    assert response.status_code == 401
+
+
+def test_create_event_returns_400_when_required_field_is_missing(auth_headers):
+    response = client.post(
+        "/api/events",
+        headers=auth_headers,
+        json={
+            "title": "Missing Field Event",
+            "description": "This is missing venue_id.",
+            "starts_at": "2026-08-15T18:00:00Z",
+            "ends_at": "2026-08-15T21:00:00Z",
+        },
+    )
+
+    assert response.status_code == 400
+
+
+def test_create_event_returns_400_when_date_format_is_invalid(auth_headers):
+    response = client.post(
+        "/api/events",
+        headers=auth_headers,
+        json={
+            "title": "Bad Date Event",
+            "description": "This has an invalid date.",
+            "starts_at": "not-a-date",
+            "ends_at": "2026-08-15T21:00:00Z",
+            "venue_id": 2,
+        },
+    )
+
+    assert response.status_code == 400    

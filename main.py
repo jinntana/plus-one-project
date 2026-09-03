@@ -15,6 +15,7 @@ JWT_SECRET = os.getenv("JWT_SECRET")
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM")
 JWT_EXPIRY_MINUTES = int(os.getenv("JWT_EXPIRY_MINUTES"))
 
+
 class CredentialsRequest(BaseModel):
     email: str | None = None
     password: str | None = None
@@ -24,6 +25,14 @@ class RegisterRequest(BaseModel):
     name: str | None = None
     email: str | None = None
     password: str | None = None
+
+
+class CreateEventRequest(BaseModel):
+    title: str | None = None
+    description: str | None = None
+    starts_at: str | None = None
+    ends_at: str | None = None
+    venue_id: int | None = None
 
 
 def hash_password(plain: str) -> str:
@@ -39,6 +48,14 @@ def create_access_token(user_id: int) -> str:
     payload = {"sub": str(user_id), "exp": expire}
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
+
+def validate_iso_date(date_value: str):
+    try:
+        return datetime.fromisoformat(date_value.replace("Z", "+00:00"))
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format")
+
+
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
 
@@ -52,6 +69,7 @@ def get_current_user_id(token: str = Depends(oauth2_scheme)) -> int:
 
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Could not validate token")
+
 
 app = FastAPI()
 
@@ -94,6 +112,58 @@ def get_all_events():
         )
 
     return {"events": events}
+
+
+@app.post("/api/events", status_code=201)
+def create_event(payload: CreateEventRequest, user_id: int = Depends(get_current_user_id)):
+    if (
+        payload.title is None
+        or payload.description is None
+        or payload.starts_at is None
+        or payload.ends_at is None
+        or payload.venue_id is None
+    ):
+        raise HTTPException(status_code=400, detail="Missing required fields")
+
+    validate_iso_date(payload.starts_at)
+    validate_iso_date(payload.ends_at)
+
+    conn = get_connection()
+
+    with conn.cursor() as cursor:
+        cursor.execute(
+            """
+            INSERT INTO events (title, description, starts_at, ends_at, organiser_id, venue_id)
+            VALUES (%s, %s, %s, %s, %s, %s)
+            RETURNING id, title, description, starts_at, ends_at, organiser_id, venue_id, created_at
+            """,
+            (
+                payload.title,
+                payload.description,
+                payload.starts_at,
+                payload.ends_at,
+                user_id,
+                payload.venue_id,
+            ),
+        )
+
+        row = cursor.fetchone()
+
+    conn.commit()
+    conn.close()
+
+    event = {
+        "id": row[0],
+        "title": row[1],
+        "description": row[2],
+        "starts_at": row[3],
+        "ends_at": row[4],
+        "organiser_id": row[5],
+        "venue_id": row[6],
+        "created_at": row[7],
+    }
+
+    return {"event": event}
 
 
 @app.get("/api/events/{event_id}")
@@ -146,7 +216,6 @@ def get_event_by_id(event_id: str):
     return {"event": event}
 
 
-
 @app.post("/api/auth/login")
 def login_user(payload: CredentialsRequest):
     if payload.email is None or payload.password is None:
@@ -173,7 +242,6 @@ def login_user(payload: CredentialsRequest):
 
     token = create_access_token(row[0])
     return {"token": token}
-
 
 
 @app.post("/api/auth/register", status_code=201)
@@ -222,7 +290,8 @@ def register_user(payload: RegisterRequest):
         "created_at": row[3],
     }
 
-    return {"user": user}    
+    return {"user": user}
+
 
 @app.post("/api/events/{event_id}/rsvp", status_code=201)
 def create_rsvp(event_id: int, user_id: int = Depends(get_current_user_id)):
@@ -283,9 +352,6 @@ def create_rsvp(event_id: int, user_id: int = Depends(get_current_user_id)):
 
     return {"rsvp": rsvp}
 
-@app.get("/api/health")
-def get_health():
-    return {"status": "ok"}
 
 @app.delete("/api/events/{event_id}/rsvp/me", status_code=204)
 def delete_my_rsvp(event_id: int, user_id: int = Depends(get_current_user_id)):
@@ -321,3 +387,8 @@ def delete_my_rsvp(event_id: int, user_id: int = Depends(get_current_user_id)):
     conn.close()
 
     return Response(status_code=204)
+
+
+@app.get("/api/health")
+def get_health():
+    return {"status": "ok"}
