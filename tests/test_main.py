@@ -551,3 +551,40 @@ def test_get_my_events_returns_401_when_token_is_invalid():
     )
 
     assert response.status_code == 401
+
+def test_get_organiser_stats_returns_200_and_stats():
+    response = client.get("/api/organisers/1/stats")
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert "stats" in data
+    assert data["stats"]["organiser_id"] == 1
+    assert data["stats"]["name"] == "Alice Rahman"
+    assert "total_events" in data["stats"]
+    assert "avg_attendance" in data["stats"]
+    assert "best_attended_count" in data["stats"]
+    assert "organiser_rank" in data["stats"]
+
+
+def test_get_organiser_stats_returns_correct_types():
+    response = client.get("/api/organisers/1/stats")
+
+    assert response.status_code == 200
+
+    data = response.json()
+    stats = data["stats"]
+
+    assert isinstance(stats["organiser_id"], int)
+    assert isinstance(stats["name"], str)
+    assert isinstance(stats["total_events"], int)
+    assert isinstance(stats["avg_attendance"], float)
+    assert isinstance(stats["best_attended_count"], int)
+    assert isinstance(stats["organiser_rank"], int)
+
+
+def test_get_organiser_stats_returns_404_when_organiser_does_not_exist():
+    response = client.get("/api/organisers/999/stats")
+
+    assert response.status_code == 404    

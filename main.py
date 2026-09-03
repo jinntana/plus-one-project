@@ -566,6 +566,69 @@ def get_my_events(user_id: int = Depends(get_current_user_id)):
 
     return {"events": events}
 
+@app.get("/api/organisers/{organiser_id}/stats")
+def get_organiser_stats(organiser_id: int):
+    conn = get_connection()
+
+    with conn.cursor() as cursor:
+        cursor.execute(
+            """
+            WITH event_attendance AS (
+                SELECT
+                    events.id AS event_id,
+                    events.organiser_id,
+                    COUNT(rsvps.id) AS attendee_count
+                FROM events
+                LEFT JOIN rsvps
+                ON events.id = rsvps.event_id
+                GROUP BY events.id, events.organiser_id
+            ),
+            organiser_stats AS (
+                SELECT
+                    users.id AS organiser_id,
+                    users.name,
+                    COUNT(event_attendance.event_id) AS total_events,
+                    ROUND(AVG(event_attendance.attendee_count), 1) AS avg_attendance,
+                    MAX(event_attendance.attendee_count) AS best_attended_count,
+                    RANK() OVER (
+                        ORDER BY COUNT(event_attendance.event_id) DESC
+                    ) AS organiser_rank
+                FROM users
+                JOIN event_attendance
+                ON users.id = event_attendance.organiser_id
+                GROUP BY users.id, users.name
+            )
+            SELECT
+                organiser_id,
+                name,
+                total_events,
+                avg_attendance,
+                best_attended_count,
+                organiser_rank
+            FROM organiser_stats
+            WHERE organiser_id = %s
+            """,
+            (organiser_id,),
+        )
+
+        row = cursor.fetchone()
+
+    conn.close()
+
+    if row is None:
+        raise HTTPException(status_code=404, detail="Organiser not found")
+
+    stats = {
+        "organiser_id": row[0],
+        "name": row[1],
+        "total_events": row[2],
+        "avg_attendance": float(row[3]),
+        "best_attended_count": row[4],
+        "organiser_rank": row[5],
+    }
+
+    return {"stats": stats}
+
 @app.get("/api/health")
 def get_health():
     return {"status": "ok"}
