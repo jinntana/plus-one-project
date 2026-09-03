@@ -3,7 +3,18 @@
 # Install and start the Plus One API
 
 apt update -y
-apt install -y python3 python3-pip python3-venv git
+apt install -y python3 python3-pip python3-venv git postgresql postgresql-contrib
+
+systemctl start postgresql
+systemctl enable postgresql
+
+sudo -u postgres psql -c "DROP DATABASE IF EXISTS nc_plus_one;"
+sudo -u postgres psql -c "CREATE DATABASE nc_plus_one;"
+sudo -u postgres psql -c "DO \$\$ BEGIN IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'ubuntu') THEN CREATE ROLE ubuntu LOGIN; END IF; END \$\$;"
+sudo -u postgres psql -d nc_plus_one -c "GRANT ALL ON SCHEMA public TO ubuntu;"
+sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE nc_plus_one TO ubuntu;"
+
+rm -rf /home/ubuntu/plus-one-project
 git clone https://github.com/jinntana/plus-one-project.git /home/ubuntu/plus-one-project
 
 chown -R ubuntu:ubuntu /home/ubuntu/plus-one-project
@@ -16,11 +27,22 @@ source venv/bin/activate
 
 pip install -r requirements.txt
 
-export JWT_SECRET="e864240766c9fae306e0f553841309331d84747c0e9448e79e29a2c100d6719d"
-export JWT_ALGORITHM="HS256"
-export JWT_EXPIRY_MINUTES= "30"
+cat > .env <<EOF
+PGHOST=/var/run/postgresql
+PGPORT=5432
+PGDATABASE=nc_plus_one
+PGUSER=ubuntu
+PGPASSWORD=
+JWT_SECRET=e864240766c9fae306e0f553841309331d84747c0e9448e79e29a2c100d6719d
+JWT_ALGORITHM=HS256
+JWT_EXPIRY_MINUTES=30
+EOF
 
+set -a
+source .env
+set +a
 
+python -m db.seed
 
 nohup uvicorn main:app \
   --host 0.0.0.0 \
