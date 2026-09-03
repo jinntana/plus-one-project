@@ -1,92 +1,73 @@
-## Database Setup
-I created a database setup script so the database can be reset easily. 
-The script drops the existing nc_plus_one database if it exists, then recreates it.
+# NC Plus One
 
-## Database Connection
-I created a reusable get_connection function inside db/connection.py. It uses psycopg2.connect to connect to the nc_plus_one database. For now, the database name is stored in db/credentials.py, which has been added to .gitignore so local credentials are not committed. The connection can now be imported and used from another file, such as seed.py.
+NC Plus One is a backend API for a small event RSVP platform.
 
+Users can register, log in, browse events, RSVP to events, cancel their RSVP, create events, update events they organise, view attendee lists, and see basic event statistics.
 
-## Database Seeding
+I built this project as part of my move into backend and data engineering. The aim was to build a realistic API with authentication, protected routes, database relationships, repeatable seed data, integration tests, and SQL queries that do more than basic CRUD.
 
-The project uses a seed script to create a clean version of the database with test data.
+## Why I built this
 
-The database schema is stored in `db/schema.sql`. It drops and recreates the `users`, `venues`, `events`, and `rsvps` tables in the correct order so key relationships work correctly.
+I wanted a project that showed more than just simple endpoints.
 
-The `db/seed.py` file reads the JSON files in `db/data` and bulk inserts the users, venues, events, and RSVP records into the database. This means the database can be reset to the same starting data whenever needed.
+This project gave me a chance to practise building an API around real relationships:
 
-To run the seed:
+- users can organise events
+- users can RSVP to events
+- organisers can manage their own events
+- organisers can view attendee lists
+- reporting endpoints can use SQL joins, aggregates and window functions
 
-bash
-python db/seed.py
+It also helped me practise handling the parts that usually matter in real backend work: authentication, password hashing, permissions, error handling, testing, and database reset scripts.
 
+## What problem it solves
 
+NC Plus One gives a basic backend structure for managing events and RSVPs.
 
+It could be used as the API behind a simple meetup, community event, networking, or internal company event platform. The frontend could use this API to let users sign up, log in, browse events, RSVP, cancel attendance, and let organisers manage their own events.
 
+## Features
 
-I ordered the events by the latest events first so at ascending so the API returns them in chronological order, with the earliest event first. This is useful for an events list.
+- Register a new user
+- Log in and receive a JWT
+- Store passwords using bcrypt hashing
+- View all events
+- View a single event with venue details
+- Create a new event as the logged-in user
+- Update an event only if you are the organiser
+- RSVP to an event
+- Cancel your own RSVP
+- View attendees for an event you organise
+- View events you have RSVP’d to
+- View organiser statistics
+- Return clear HTTP status codes for common errors
 
-Environment Variables
+## Tech stack
 
-This project uses environment variables to connect to the PostgreSQL database.
+- Python
+- FastAPI
+- PostgreSQL
+- Pytest
+- bcrypt
+- JWT
+- python-dotenv
+- Uvicorn
+- Terraform
+- AWS EC2 deployment preparation
 
-You will need the following variables:
+## Project structure
 
-PGHOST – the database host, such as localhost
-PGPORT – the database port, usually 5432
-PGDATABASE – the name of the database
-PGUSER – your PostgreSQL username
-PGPASSWORD – your PostgreSQL password
-
-For local development, create a .env file from the example file:
-
-cp .env.example .env
-
-Then update the values in .env with your own local database details.
-
-The .env file should not be committed to GitHub because it contains private information. When the application is deployed to AWS, the database details will be provided through environment variables instead.
-
-## Terraform Setup
-
-The AWS infrastructure is stored in the `terraform` folder.
-
-Terraform uses an S3 bucket to store its state remotely. Create the bucket before running `terraform init`:
-
-```bash
-aws s3api create-bucket \
-  --bucket serhan-plus-one-terraform-state-2026 \
-  --region eu-west-2 \
-  --create-bucket-configuration LocationConstraint=eu-west-2
-```
-
-Make sure the bucket name matches the one in `terraform/backend.tf`.
-
-Then initialise Terraform from the project root:
-
-```bash
-terraform -chdir=terraform init
-```
-
-Terraform should confirm that the S3 backend has been configured successfully.
-
-
-## EC2 Instance
-
-The API is hosted on an Ubuntu EC2 instance in the London region.
-
-It uses a `t2.micro` instance and the latest official Ubuntu image from Canonical. SSH access is limited to my current public IP address.
-
-After running:
-
-```bash
-terraform terraform apply
-```
-
-Terraform will display the instance’s public IP address.
-
-Use that IP to connect:
-
-```bash
-ssh -i ~/.ssh/plus-one-key.pem ubuntu@PUBLIC_IP
-```
-
-Replace `PUBLIC_IP` with the value shown by Terraform.
+```text
+.
+├── db
+│   ├── connection.py
+│   ├── credentials.py
+│   ├── data
+│   ├── schema.sql
+│   ├── seed.py
+│   └── setup.sql
+├── main.py
+├── requirements.txt
+├── tests
+│   └── test_main.py
+└── terraform
