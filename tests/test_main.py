@@ -341,4 +341,110 @@ def test_create_event_returns_400_when_date_format_is_invalid(auth_headers):
         },
     )
 
-    assert response.status_code == 400    
+    assert response.status_code == 400
+
+def test_patch_event_returns_200_and_updated_event(auth_headers):
+    response = client.patch(
+        "/api/events/1",
+        headers=auth_headers,
+        json={
+            "description": "Updated description with live music.",
+        },
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert "event" in data
+    assert data["event"]["id"] == 1
+    assert data["event"]["description"] == "Updated description with live music."
+
+
+def test_patch_event_keeps_omitted_fields_unchanged(auth_headers):
+    response = client.patch(
+        "/api/events/1",
+        headers=auth_headers,
+        json={
+            "description": "Only the description changed.",
+        },
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["event"]["title"] == "Leeds Tech Meetup – June Edition"
+    assert data["event"]["description"] == "Only the description changed."
+
+
+def test_patch_event_returns_401_when_token_is_missing():
+    response = client.patch(
+        "/api/events/1",
+        json={
+            "description": "This should not update.",
+        },
+    )
+
+    assert response.status_code == 401
+
+
+def test_patch_event_returns_401_when_token_is_invalid():
+    response = client.patch(
+        "/api/events/1",
+        headers={"Authorization": "Bearer not-a-real-token"},
+        json={
+            "description": "This should not update.",
+        },
+    )
+
+    assert response.status_code == 401
+
+
+def test_patch_event_returns_403_when_user_is_not_organiser(auth_headers_user_2):
+    response = client.patch(
+        "/api/events/1",
+        headers=auth_headers_user_2,
+        json={
+            "description": "User 2 should not be able to update this.",
+        },
+    )
+
+    assert response.status_code == 403
+
+
+def test_patch_event_returns_404_when_event_does_not_exist(auth_headers):
+    response = client.patch(
+        "/api/events/999",
+        headers=auth_headers,
+        json={
+            "description": "This event does not exist.",
+        },
+    )
+
+    assert response.status_code == 404
+
+
+def test_patch_event_returns_400_when_date_format_is_invalid(auth_headers):
+    response = client.patch(
+        "/api/events/1",
+        headers=auth_headers,
+        json={
+            "starts_at": "not-a-date",
+        },
+    )
+
+    assert response.status_code == 400
+
+
+def test_patch_event_returns_400_when_ends_at_is_before_starts_at(auth_headers):
+    response = client.patch(
+        "/api/events/1",
+        headers=auth_headers,
+        json={
+            "starts_at": "2026-08-15T21:00:00Z",
+            "ends_at": "2026-08-15T18:00:00Z",
+        },
+    )
+
+    assert response.status_code == 400

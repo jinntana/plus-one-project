@@ -34,6 +34,13 @@ class CreateEventRequest(BaseModel):
     ends_at: str | None = None
     venue_id: int | None = None
 
+class PatchEventRequest(BaseModel):
+    title: str | None = None
+    description: str | None = None
+    starts_at: str | None = None
+    ends_at: str | None = None
+    venue_id: int | None = None    
+
 
 def hash_password(plain: str) -> str:
     return bcrypt.hashpw(plain.encode(), bcrypt.gensalt()).decode()
@@ -165,6 +172,81 @@ def create_event(payload: CreateEventRequest, user_id: int = Depends(get_current
 
     return {"event": event}
 
+@app.patch("/api/events/{event_id}")
+def update_event(event_id: int, payload: PatchEventRequest, user_id: int = Depends(get_current_user_id)):
+    conn = get_connection()
+
+    with conn.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT id, title, description, starts_at, ends_at, organiser_id, venue_id, created_at
+            FROM events
+            WHERE id = %s
+            """,
+            (event_id,),
+        )
+
+        row = cursor.fetchone()
+
+        if row is None:
+            conn.close()
+            raise HTTPException(status_code=404, detail="Event not found")
+
+        if row[5] != user_id:
+            conn.close()
+            raise HTTPException(status_code=403, detail="You are not the organiser of this event")
+
+        new_title = payload.title if payload.title is not None else row[1]
+        new_description = payload.description if payload.description is not None else row[2]
+        new_starts_at = payload.starts_at if payload.starts_at is not None else row[3].isoformat()
+        new_ends_at = payload.ends_at if payload.ends_at is not None else row[4].isoformat()
+        new_venue_id = payload.venue_id if payload.venue_id is not None else row[6]
+
+        starts_at_date = validate_iso_date(new_starts_at)
+        ends_at_date = validate_iso_date(new_ends_at)
+
+        if ends_at_date <= starts_at_date:
+            conn.close()
+            raise HTTPException(status_code=400, detail="ends_at must be after starts_at")
+
+        cursor.execute(
+            """
+            UPDATE events
+            SET title = %s,
+                description = %s,
+                starts_at = %s,
+                ends_at = %s,
+                venue_id = %s
+            WHERE id = %s
+            RETURNING id, title, description, starts_at, ends_at, organiser_id, venue_id, created_at
+            """,
+            (
+                new_title,
+                new_description,
+                new_starts_at,
+                new_ends_at,
+                new_venue_id,
+                event_id,
+            ),
+        )
+
+        updated_row = cursor.fetchone()
+
+    conn.commit()
+    conn.close()
+
+    event = {
+        "id": updated_row[0],
+        "title": updated_row[1],
+        "description": updated_row[2],
+        "starts_at": updated_row[3],
+        "ends_at": updated_row[4],
+        "organiser_id": updated_row[5],
+        "venue_id": updated_row[6],
+        "created_at": updated_row[7],
+    }
+
+    return {"event": event}
 
 @app.get("/api/events/{event_id}")
 def get_event_by_id(event_id: str):
