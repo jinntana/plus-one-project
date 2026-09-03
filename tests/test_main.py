@@ -448,3 +448,57 @@ def test_patch_event_returns_400_when_ends_at_is_before_starts_at(auth_headers):
     )
 
     assert response.status_code == 400
+
+def test_get_event_attendees_returns_200_and_attendees(auth_headers):
+    response = client.get("/api/events/1/attendees", headers=auth_headers)
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert "attendees" in data
+    assert len(data["attendees"]) > 0
+
+    first_attendee = data["attendees"][0]
+
+    assert "id" in first_attendee
+    assert "name" in first_attendee
+    assert "email" in first_attendee
+
+
+def test_get_event_attendees_does_not_return_passwords(auth_headers):
+    response = client.get("/api/events/1/attendees", headers=auth_headers)
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    for attendee in data["attendees"]:
+        assert "password" not in attendee
+
+
+def test_get_event_attendees_returns_401_when_token_is_missing():
+    response = client.get("/api/events/1/attendees")
+
+    assert response.status_code == 401
+
+
+def test_get_event_attendees_returns_401_when_token_is_invalid():
+    response = client.get(
+        "/api/events/1/attendees",
+        headers={"Authorization": "Bearer not-a-real-token"},
+    )
+
+    assert response.status_code == 401
+
+
+def test_get_event_attendees_returns_403_when_user_is_not_organiser(auth_headers_user_2):
+    response = client.get("/api/events/1/attendees", headers=auth_headers_user_2)
+
+    assert response.status_code == 403
+
+
+def test_get_event_attendees_returns_404_when_event_does_not_exist(auth_headers):
+    response = client.get("/api/events/999/attendees", headers=auth_headers)
+
+    assert response.status_code == 404

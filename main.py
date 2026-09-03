@@ -248,6 +248,59 @@ def update_event(event_id: int, payload: PatchEventRequest, user_id: int = Depen
 
     return {"event": event}
 
+@app.get("/api/events/{event_id}/attendees")
+def get_event_attendees(event_id: int, user_id: int = Depends(get_current_user_id)):
+    conn = get_connection()
+
+    with conn.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT id, organiser_id
+            FROM events
+            WHERE id = %s
+            """,
+            (event_id,),
+        )
+
+        event = cursor.fetchone()
+
+        if event is None:
+            conn.close()
+            raise HTTPException(status_code=404, detail="Event not found")
+
+        if event[1] != user_id:
+            conn.close()
+            raise HTTPException(status_code=403, detail="You are not the organiser of this event")
+
+        cursor.execute(
+            """
+            SELECT users.id, users.name, users.email
+            FROM rsvps
+            JOIN users
+            ON rsvps.attendee_id = users.id
+            WHERE rsvps.event_id = %s
+            ORDER BY users.id ASC
+            """,
+            (event_id,),
+        )
+
+        rows = cursor.fetchall()
+
+    conn.close()
+
+    attendees = []
+
+    for row in rows:
+        attendees.append(
+            {
+                "id": row[0],
+                "name": row[1],
+                "email": row[2],
+            }
+        )
+
+    return {"attendees": attendees}
+
 @app.get("/api/events/{event_id}")
 def get_event_by_id(event_id: str):
     if not event_id.isdigit():
